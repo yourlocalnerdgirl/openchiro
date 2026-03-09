@@ -14,9 +14,7 @@ PORT = 8000
 
 print("#### OPENCHIRO ####")
 
-# -------------------
-# LOGIN
-# -------------------
+
 
 u = input("login: ")
 p = getpass.getpass("pass: ")
@@ -46,9 +44,7 @@ message_dialog(
 ).run()
 
 
-# -------------------
-# CREATE PATIENT
-# -------------------
+
 
 def create_patient():
 
@@ -106,9 +102,7 @@ def create_patient():
         ).run()
 
 
-# -------------------
-# VIEW PATIENTS
-# -------------------
+
 
 def view_patients():
 
@@ -152,9 +146,7 @@ def view_patients():
     ).run()
 
 
-# -------------------
-# PATIENT MENU
-# -------------------
+
 
 def patient_menu():
 
@@ -180,9 +172,7 @@ def patient_menu():
             break
 
 
-# -------------------
-# MAIN MENU
-# -------------------
+
 
 def menu():
 
