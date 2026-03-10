@@ -46,7 +46,7 @@ def create_patient():
     ssn=input_dialog(title="Create Patient",text="SSN:").run()
     phone=input_dialog(title="Create Patient",text="Phone:").run()
     email=input_dialog(title="Create Patient",text="Email:").run()
-    casetype=input_dialog(title="Create Patient",text="Case Type? (Cash, Credit, Debit?)").run()
+    ctype=input_dialog(title="Create Patient",text="Case Type? (Cash, Credit, Debit?)").run()
 
     patient={
         "first_name":first,
@@ -54,7 +54,8 @@ def create_patient():
         "dob":dob,
         "ssn":ssn,
         "phone":phone,
-        "email":email
+        "email":email,
+        "ctype1":ctype
     }
 
     r=send_request({
@@ -88,7 +89,7 @@ def patient_chart(p):
             SSN: {p['ssn']}
             Phone: {p['phone']}
             Email: {p['email']}
-            Case Type: {p['casetype']}
+            Case Type: {p.get('ctype1','Unknown')}
             """
 
             message_dialog(title="Demographics",text=text).run()
@@ -187,7 +188,7 @@ def view_appointments():
     text=""
 
     for a in r["appointments"]:
-        text+=f"Patient {a['name']} Has an Appointment at: {a['date']} {a['time']} with: {a['provider']} in: {a['room']} \n"
+        text+=f"Patient {a['name']} Has an Appointment on: {a['date']} at: {a['time']} with: {a['provider']} in: {a['room']} \n"
 
     if not text:
         text="No appointments"
