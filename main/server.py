@@ -4,56 +4,55 @@ import json
 import time
 import os
 import bcrypt
-from jose import jwt, JWTError
+
+from jose import jwt,JWTError
 from cryptography.fernet import Fernet
 
 HOST="0.0.0.0"
 PORT=8000
 
-SECRET=os.getenv("SKY2011","MAIN1")
+SECRET=os.getenv("OPENCHIRO_SECRET","devsecret")
 
-DATA_FILE="patients.enc"
+PATIENT_FILE="patients.enc"
 APPT_FILE="appointments.enc"
 KEY_FILE="data.key"
 
-
-
+# encryption key
 if not os.path.exists(KEY_FILE):
     key=Fernet.generate_key()
-    with open(KEY_FILE,"wb") as f:
-        f.write(key)
+    open(KEY_FILE,"wb").write(key)
 else:
-    with open(KEY_FILE,"rb") as f:
-        key=f.read()
+    key=open(KEY_FILE,"rb").read()
 
 cipher=Fernet(key)
 
-
-
+# users
 users={
-    "molly":bcrypt.hashpw(b"pass1234",bcrypt.gensalt())
+    "user":bcrypt.hashpw(b"pass1234",bcrypt.gensalt())
 }
 
 
-
 def load_file(path):
+
     if not os.path.exists(path):
         return []
 
-    with open(path,"rb") as f:
-        data=f.read()
+    data=open(path,"rb").read()
 
-    return json.loads(cipher.decrypt(data).decode())
+    try:
+        return json.loads(cipher.decrypt(data).decode())
+    except:
+        return []
+
 
 def save_file(path,data):
+
     enc=cipher.encrypt(json.dumps(data).encode())
-
-    with open(path,"wb") as f:
-        f.write(enc)
-
+    open(path,"wb").write(enc)
 
 
 def verify_token(token):
+
     try:
         payload=jwt.decode(token,SECRET,algorithms=["HS256"])
         return payload["sub"]
@@ -61,14 +60,13 @@ def verify_token(token):
         return None
 
 
-
 def handle(c):
 
     try:
 
-        data=json.loads(c.recv(4096).decode())
+        data=json.loads(c.recv(8192).decode())
 
-
+        # LOGIN
         if "username" in data:
 
             u=data["username"]
@@ -90,74 +88,119 @@ def handle(c):
             return
 
 
-        token=data.get("token")
-        user=verify_token(token)
+        user=verify_token(data.get("token"))
 
         if not user:
             c.send(b'{"status":"unauthorized"}')
             return
 
+
         action=data.get("action")
 
+        # CREATE PATIENT
         if action=="create_patient":
 
-            patients=load_file(DATA_FILE)
+            patients=load_file(PATIENT_FILE)
 
             p=data["data"]
             p["id"]=len(patients)+1
             p["created_by"]=user
-            p["created_at"]=int(time.time())
+
+            p["soap"]=[]
 
             patients.append(p)
 
-            save_file(DATA_FILE,patients)
+            save_file(PATIENT_FILE,patients)
 
-            c.send(json.dumps({"status":"ok","patient":p}).encode())
+            c.send(b'{"status":"ok"}')
 
 
+        # LIST PATIENTS
         elif action=="list_patients":
 
-            patients=load_file(DATA_FILE)
+            patients=load_file(PATIENT_FILE)
 
             c.send(json.dumps({
                 "status":"ok",
                 "patients":patients
             }).encode())
 
+
+        # ADD SOAP NOTE
+        elif action=="add_soap":
+
+            patients=load_file(PATIENT_FILE)
+
+            pid=data["patient_id"]
+            note=data["soap"]
+
+            for p in patients:
+
+                if p["id"]==pid:
+
+                    note["provider"]=user
+                    note["time"]=int(time.time())
+
+                    p["soap"].append(note)
+
+            save_file(PATIENT_FILE,patients)
+
+            c.send(b'{"status":"ok"}')
+
+
+        # LIST SOAP NOTES
+        elif action=="list_soap":
+
+            patients=load_file(PATIENT_FILE)
+
+            pid=data["patient_id"]
+
+            for p in patients:
+
+                if p["id"]==pid:
+
+                    c.send(json.dumps({
+                        "status":"ok",
+                        "soap":p.get("soap",[])
+                    }).encode())
+                    return
+
+            c.send(b'{"status":"not_found"}')
+
+
+        # CREATE APPOINTMENT
         elif action=="create_appointment":
 
             appts=load_file(APPT_FILE)
 
             a=data["data"]
+
             a["id"]=len(appts)+1
+            a["created_by"]=user
 
             appts.append(a)
 
             save_file(APPT_FILE,appts)
 
-            c.send(json.dumps({"status":"ok"}).encode())
+            c.send(b'{"status":"ok"}')
 
 
+        # LIST APPOINTMENTS
         elif action=="list_appointments":
 
             appts=load_file(APPT_FILE)
-
-            pid=data.get("patient_id")
-
-            if pid:
-                appts=[a for a in appts if a["patient_id"]==pid]
 
             c.send(json.dumps({
                 "status":"ok",
                 "appointments":appts
             }).encode())
 
+
         else:
-            c.send(b'{"status":"unknown_action"}')
+            c.send(b'{"status":"unknown"}')
 
     finally:
         c.close()
-
 
 
 context=ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
@@ -171,8 +214,9 @@ with socket.socket() as s:
     with context.wrap_socket(s,server_side=True) as ss:
 
         print("OpenChiro Server Running on",PORT)
-        print("Made by Sky Keefe for BTHFC")
 
         while True:
-            client,_=ss.accept()
+
+            client,addr=ss.accept()
+
             handle(client)

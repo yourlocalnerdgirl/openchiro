@@ -77,6 +77,7 @@ def patient_chart(p):
             values=[
                 ("demo","Demographics"),
                 ("appts","Appointments"),
+                ("soap", "SOAP Notes"),
                 ("back","Back")
             ]
         ).run()
@@ -97,9 +98,105 @@ def patient_chart(p):
         elif choice=="appts":
             patient_appointments(p)
 
+        elif choice=="soap":
+            soapnotes(p)
+
         else:
             break
 
+def soapnotes(p):
+
+    while True:
+
+        choice=radiolist_dialog(
+            title="SOAP Notes",
+            text="Options",
+            values=[
+                ("view","View SOAP Notes"),
+                ("new","New SOAP Note"),
+                ("back","Back")
+            ]
+        ).run()
+
+        if choice=="view":
+
+            r=send_request({
+                "token":token,
+                "action":"list_soap",
+                "patient_id":p["id"]
+            })
+
+            notes=r.get("soap",[])
+
+            if not notes:
+                message_dialog(
+                    title="SOAP Notes",
+                    text="No SOAP notes found."
+                ).run()
+                continue
+
+            text=""
+
+            for n in notes:
+
+                text+=f"""
+Provider: {n.get('provider','Unknown')}
+
+S: {n.get('subjective','')}
+O: {n.get('objective','')}
+A: {n.get('assessment','')}
+P: {n.get('plan','')}
+
+------------------------
+"""
+
+            message_dialog(
+                title="SOAP Notes",
+                text=text
+            ).run()
+
+
+        elif choice=="new":
+
+            s=input_dialog(
+                title="SOAP - Subjective",
+                text="Patient complaint / symptoms:"
+            ).run()
+
+            o=input_dialog(
+                title="SOAP - Objective",
+                text="Exam findings:"
+            ).run()
+
+            a=input_dialog(
+                title="SOAP - Assessment",
+                text="Diagnosis / impression:"
+            ).run()
+
+            pplan=input_dialog(
+                title="SOAP - Plan",
+                text="Treatment plan:"
+            ).run()
+
+            send_request({
+                "token":token,
+                "action":"add_soap",
+                "patient_id":p["id"],
+                "soap":{
+                    "subjective":s,
+                    "objective":o,
+                    "assessment":a,
+                    "plan":pplan
+                }
+            })
+
+            message_dialog(
+                title="SOAP Notes",
+                text="SOAP note added."
+            ).run()
+
+        else:
+            break
 
 
 def patient_appointments(p):
