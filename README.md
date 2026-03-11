@@ -1,4 +1,4 @@
-open source ChiroTouch
+OpenChiro
 ---
 felt like I'd make this to stop EHR software providers from overcharging people lolz
 
